@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CenterCheck Attendance</title>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255, 122, 0, 0.25), transparent 35%),
+        linear-gradient(135deg, #12070e, #07070c 70%);
+      color: #fff;
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 560px;
+      background: rgba(10, 10, 14, 0.9);
+      border: 1px solid rgba(244, 193, 93, 0.35);
+      border-radius: 18px;
+      padding: 26px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.55);
+    }
+
+    .logo {
+      text-align: center;
+      margin-bottom: 18px;
+    }
+
+    .logo img {
+      max-height: 64px;
+      max-width: 220px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 8px;
+      color: #f4c15d;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: rgba(255,255,255,0.75);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.9);
+    }
+
+    select {
+      width: 100%;
+      padding: 13px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    option {
+      color: #111;
+    }
+
+    select: focus {
+      border-color: #f4c15d;
+      box-shadow: 0 0 0 3px rgba(244,193,93,0.18);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.05rem;
+      font-weight: 900;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: linear-gradient(135deg, #ffb34a, #ff6a00, #d63800);
+      color: #1a0f07;
+      box-shadow: 0 14px 30px rgba(0,0,0,0.45);
+    }
+
+    .btn: disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 10px;
+      display: none;
+      line-height: 1.5;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .message.success {
+      display: block;
+      background: rgba(56,161,105,0.22);
+      border: 1px solid rgba(56,161,105,0.55);
+      color: #baf7ca;
+    }
+
+    .message.error {
+      display: block;
+      background: rgba(229,62,62,0.22);
+      border: 1px solid rgba(229,62,62,0.55);
+      color: #ffd2d2;
+    }
+
+    .small-note {
+      margin-top: 14px;
+      text-align: center;
+      color: rgba(255,255,255,0.55);
+      font-size: 0.85rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="logo">
+      <img src="vh-chicago.png" alt="Victory House Chicago" />
+    </div>
+
+    <h1>CenterCheck</h1>
+    <p class="subtitle">
+      Select your Bible Study Center, find your name, and mark yourself present.
+    </p>
+
+    <div class="form-group">
+      <label for="centerSelect">Bible Study Center</label>
+      <select id="centerSelect">
+        <option value="">Select your center</option>
+        <option value="Sabaoth">Sabaoth</option>
+        <option value="Ever Present Help">Ever Present Help</option>
+        <option value="Kaddosh">Kaddosh</option>
+        <option value="unQuestionable God">unQuestionable God</option>
+        <option value="Indescribable God">Indescribable God</option>
+        <option value="Unfailing Helper">Unfailing Helper</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="memberSelect">Your Name</label>
+      <select id="memberSelect" disabled>
+        <option value="">Select a center first</option>
+      </select>
+    </div>
+
+    <button class="btn" id="presentBtn" disabled>✅ I’m Present</button>
+
+    <div id="messageBox" class="message"></div>
+
+    <p class="small-note">
+      Attendance is saved securely for your selected center.
+    </p>
+  </div>
+
+  <script>
+    const API_URL = "PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE";
+
+    const centerSelect = document.getElementById("centerSelect");
+    const memberSelect = document.getElementById("memberSelect");
+    const presentBtn = document.getElementById("presentBtn");
+    const messageBox = document.getElementById("messageBox");
+
+    let currentMembers = [];
+
+    function showMessage(text, type) {
+      messageBox.textContent = text;
+      messageBox.className = "message " + type;
+    }
+
+    function clearMessage() {
+      messageBox.textContent = "";
+      messageBox.className = "message";
+    }
+
+    function setLoading(isLoading, text = "Loading...") {
+      presentBtn.disabled = isLoading || !memberSelect.value;
+      presentBtn.textContent = isLoading ? text : "✅ I’m Present";
+    }
+
+    function escapeOptionText(value) {
+      return String(value ?? "");
+    }
+
+    async function fetchGroupMembers(center) {
+      const url = `${API_URL}?action=groupmembers&group=${encodeURIComponent(center)}`;
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Could not load members.");
+      }
+
+      return data.members || [];
+    }
+
+    async function saveAttendance(member) {
+      const payload = {
+        action: "attendance",
+        center: centerSelect.value,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        phone: member.phone || "",
+        status: "Present"
+      };
+
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Attendance could not be saved.");
+      }
+
+      return data;
+    }
+
+    centerSelect.addEventListener("change", async () => {
+      clearMessage();
+      const center = centerSelect.value;
+
+      memberSelect.innerHTML = `<option value="">Loading members...</option>`;
+      memberSelect.disabled = true;
+      presentBtn.disabled = true;
+
+      if (!center) {
+        memberSelect.innerHTML = `<option value="">Select a center first</option>`;
+        return;
+      }
+
+      try {
+        currentMembers = await fetchGroupMembers(center);
+
+        if (currentMembers.length === 0) {
+          memberSelect.innerHTML = `<option value="">No registered members found</option>`;
+          showMessage("No registered members found for this center.", "error");
+          return;
+        }
+
+        memberSelect.innerHTML =
+          `<option value="">Select your name</option>` +
+          currentMembers.map((m, index) => {
+            const name = `${m.firstName} ${m.lastName}`.trim();
+            return `<option value="${index}">${escapeOptionText(name)}</option>`;
+          }).join("");
+
+        memberSelect.disabled = false;
+      } catch (err) {
+        console.error(err);
+        memberSelect.innerHTML = `<option value="">Unable to load members</option>`;
+        showMessage(err.message, "error");
+      }
+    });
+
+    memberSelect.addEventListener("change", () => {
+      clearMessage();
+      presentBtn.disabled = !memberSelect.value;
+    });
+
+    presentBtn.addEventListener("click", async () => {
+      clearMessage();
+
+      const selectedIndex = memberSelect.value;
+      if (!selectedIndex) {
+        showMessage("Please select your name first.", "error");
+        return;
+      }
+
+      const member = currentMembers[Number(selectedIndex)];
+      if (!member) {
+        showMessage("Selected member could not be found.", "error");
+        return;
+      }
+
+      try {
+        setLoading(true, "Saving...");
+        await saveAttendance(member);
+        showMessage(`Attendance marked. Welcome, ${member.firstName}!`, "success");
+        setLoading(false);
+      } catch (err) {
+        console.error(err);
+        showMessage(err.message, "error");
+        setLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>
